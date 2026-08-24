@@ -1,5 +1,5 @@
 export const config = {
-  title: "mahaitao",
+  title: "haitao's blog",
   baseUrl: "https://mahaitao.com",
   author: "haitao",
   theme: "classic",
