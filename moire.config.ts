@@ -8,5 +8,5 @@ export const config = {
   order_by: "created",
   description: "",
   keywords: "",
-  url: "https://mahaitao.com"
+  url: ""
 };
