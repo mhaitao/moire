@@ -3,7 +3,7 @@ export const config = {
   baseUrl: "https://mahaitao.com",
   author: "haitao",
   theme: "bento",
-  heatmap: true,
+  heatmap: false,
   pageSize: 20,
   order_by: "created",
   description: "",

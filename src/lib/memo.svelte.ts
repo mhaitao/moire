@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 export function createMemoList(getData: () => any, config: any) {
     let visibleCount = $state(config.pageSize || 20);
     let selectedTag = $state<string | null>(null);
+    let activeSlug = $state<string | null>(null);
 
     // Derived: Get all unique tags
     const allTags = $derived.by(() => {
@@ -34,14 +35,56 @@ export function createMemoList(getData: () => any, config: any) {
         return groups;
     });
 
+    // Derived: the memo currently open in the reading view, if any
+    const activeMemo = $derived(
+        activeSlug ? (getData().memos.find((memo: any) => memo.slug === activeSlug) ?? null) : null
+    );
+
     function loadMore() {
         visibleCount += (config.pageSize || 20);
     }
 
     function selectTag(tag: string | null) {
         selectedTag = selectedTag === tag ? null : tag;
-      visibleCount = config.pageSize || 20;
+        visibleCount = config.pageSize || 20;
+        activeSlug = null;
     }
+
+    // A memo has no explicit title field (notes synced from Apple Notes use
+    // their first line as the title), so derive one from the leading block
+    // of the rendered content.
+    function getTitle(memo: any, maxLength = 80): string {
+        const html: string = memo?.content || '';
+        const match = html.match(/<(h[1-6]|p)[^>]*>([\s\S]*?)<\/\1>/i);
+        const raw = match ? match[2] : html;
+        const text = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!text) return format(memo.date, 'MMMM d, yyyy');
+        return text.length > maxLength ? text.slice(0, maxLength).trimEnd() + '…' : text;
+    }
+
+    function openMemo(slug: string) {
+        activeSlug = slug;
+        window.location.hash = slug;
+    }
+
+    function closeMemo() {
+        activeSlug = null;
+        if (window.location.hash) {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+    }
+
+    // Support deep-linking / back-forward navigation via the #slug permalink
+    // (the same convention already used by the RSS feed and JSON-LD schema).
+    $effect(() => {
+        const applyHash = () => {
+            const hash = decodeURIComponent(window.location.hash.slice(1));
+            activeSlug = hash && getData().memos.some((m: any) => m.slug === hash) ? hash : null;
+        };
+        applyHash();
+        window.addEventListener('hashchange', applyHash);
+        return () => window.removeEventListener('hashchange', applyHash);
+    });
 
     return {
         get visibleCount() { return visibleCount },
@@ -50,7 +93,11 @@ export function createMemoList(getData: () => any, config: any) {
         get filteredMemos() { return filteredMemos },
         get visibleMemos() { return visibleMemos },
         get groupedMemos() { return groupedMemos },
+        get activeMemo() { return activeMemo },
         loadMore,
-        selectTag
+        selectTag,
+        getTitle,
+        openMemo,
+        closeMemo
     };
 }
